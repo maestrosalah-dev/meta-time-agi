@@ -48,7 +48,7 @@ def main():
 
         print(
             f"{k:03d} | obs={obs:+.3f} pred={pred:+.3f} err={err:.3f} | "
-            f"{label(state):<12} | age={clock.relational_age:.3f} dens={clock.density():.3f} | "
+            f"{label(state):<12} | age={clock.relational_age:.3f} dens={clock.density:.3f} | "
             f"| {bar(clock.relational_age)}"
         )
 
