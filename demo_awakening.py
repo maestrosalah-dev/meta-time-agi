@@ -13,11 +13,11 @@ def main():
         epsilon=1e-12,
     ))
 
-    # fake loss stream: stable -> shift -> stable (مثل الديمو القديم)
+    # stable -> shift -> stable
     losses = []
-    for _ in range(80):  # stable learning
+    for _ in range(80):
         losses.append(max(0.03, 0.8 * random.random()))
-    losses.append(10.0)  # distribution shift spike
+    losses.append(10.0)
     for _ in range(79):
         losses.append(1.7 + 0.6 * random.random())
 
