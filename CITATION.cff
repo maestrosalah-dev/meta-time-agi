@@ -1,26 +1,20 @@
-cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
-type: software
-title: "Meta-Time AGI: Relational Time from Prediction Error"
-authors:
-  - family-names: "ATHMANI"
-    given-names: "SALAH"
-repository-code: "https://github.com/maestrosalah-dev/meta-time-agi"
-license: "MIT"
-version: "0.1.0"
-date-released: "2026-01-28"
-keywords:
-  - "relational time"
-  - "meta-time"
-  - "prediction error"
-  - "adaptive clock"
-  - "time density"
-preferred-citation:
-  type: article
-  title: "Relational Time: A Meta-Time Protocol from Prediction Error and Adaptive Learning"
-  authors:
-    - family-names: "ATHMANI"
-      given-names: "SALAH"
-  year: 2026
-  url: "https://github.com/maestrosalah-dev/meta-time-agi/tree/main/paper"
 
+---
+
+### B) إضافة ملفات v2 للريبو
+
+نفّذ (PowerShell):
+
+```powershell
+# 1) أنشئ الملفات الجديدة
+notepad .\metatime\core\clock_v2.py
+notepad .\demo_clock_v2.py
+
+# 2) أضفها للتتبع
+git add metatime/core/clock_v2.py demo_clock_v2.py README.md
+
+# 3) كوميت
+git commit -m "Add v2 Meta-Time clock (meta-time, density, curvature) + demo"
+
+# 4) ادفع
+git push
