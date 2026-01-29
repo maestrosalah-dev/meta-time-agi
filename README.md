@@ -1,6 +1,8 @@
 # \# Meta-Time AGI (Relational Time)
 
-# 
+# ## 📄 Paper
+**Meta-Time AGI: Relational Time as an Emergent Cognitive Metric**  
+DOI: https://doi.org/10.17605/OSF.IO/3C9GU
 
 # Meta-Time is a \*\*relational clock\*\* where \*time flows when prediction error shifts meaningfully\*.
 
