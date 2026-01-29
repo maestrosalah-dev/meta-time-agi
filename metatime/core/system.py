@@ -1,31 +1,32 @@
-import torch
-import torch.nn as nn
+# metatime/core/system.py
+from __future__ import annotations
+from dataclasses import dataclass
+from typing import Any, Optional
+
 from .clock import RelationalClock, ClockConfig, TemporalState
+from .observer import RelationalObserver, ObserverConfig
 
 
-class MetaTimeSystem(nn.Module):
-    def __init__(self, base_model: nn.Module, clock: RelationalClock | None = None):
-        super().__init__()
+@dataclass
+class SystemConfig:
+    clock: ClockConfig = ClockConfig()
+    observer: ObserverConfig = ObserverConfig()
+
+
+class MetaTimeSystem:
+    """
+    MetaTimeSystem:
+      - Wraps: base_model (any object), RelationalClock, RelationalObserver
+      - Exposes: observe(loss) -> TemporalState
+    """
+
+    def __init__(self, base_model: Any, cfg: Optional[SystemConfig] = None):
         self.base_model = base_model
-        self.clock = clock or RelationalClock(ClockConfig())
+        self.cfg = cfg or SystemConfig()
 
-    def forward(self, x):
-        return self.base_model(x)
+        self.clock = RelationalClock(self.cfg.clock)
+        self.observer = RelationalObserver(self.cfg.observer)
 
-    def observe(self, loss_value):
-        if isinstance(loss_value, torch.Tensor):
-            loss_value = loss_value.item()
-        return self.clock.tick(float(loss_value))
-
-    @property
-    def age(self) -> float:
-        return float(self.clock.relational_age)
-
-    @property
-    def time_density(self) -> float:
-        return float(self.clock.density())
-
-
-def awaken(model: nn.Module) -> MetaTimeSystem:
-    return MetaTimeSystem(model)
+    def observe(self, loss_value: float) -> TemporalState:
+        return self.clock.tick(loss_value)
 

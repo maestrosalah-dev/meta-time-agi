@@ -1,87 +1,147 @@
-import numpy as np
-from enum import Enum
+# metatime/core/clock.py
+from __future__ import annotations
+
 from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
+import math
 
 
-class TemporalState(Enum):
-    LIVING = "LIVING"
+class TemporalState(str, Enum):
     STAGNANT = "STAGNANT"
+    LIVING = "LIVING"
     AWAKENING = "AWAKENING"
 
 
 @dataclass
 class ClockConfig:
+    # Threshold base for "meaningful change" (prediction error change)
     base_threshold: float = 0.005
-    awakening_multiplier: float = 8.0   # delta > threshold * awakening_multiplier
-    living_multiplier: float = 1.0      # delta > threshold * living_multiplier
-    awakening_age_gain: float = 2.0     # age += delta * awakening_age_gain in awakening
-    use_weighted_delta: bool = True     # important fix
-    epsilon: float = 1e-12              # numerical safety
+
+    # Multipliers to convert "meaningful delta" into lived time gain
+    awakening_multiplier: float = 8.0
+    living_multiplier: float = 1.0
+
+    # Extra boost when awakening happens
+    awakening_age_gain: float = 2.0
+
+    # Use weighted delta for smoother behavior
+    use_weighted_delta: bool = True
+
+    # Numerical stability
+    epsilon: float = 1e-12
+
+
+@dataclass
+class TickResult:
+    state: TemporalState
+    age: float
+    delta: float
+    threshold: float
+    coherence: float
 
 
 class RelationalClock:
     """
-    Relational time accumulates only when coherence shifts meaningfully.
-    Coherence uses Inverse-Loss for stability:
-        C = 1 / (1 + loss)
-    Key fix:
-        delta := |C - C_prev| * C   (weighted by current coherence)
-    This prevents 'always-awake' behavior when loss jitters.
+    RelationalClock:
+      - Input: loss_value (prediction error proxy)
+      - Output: TemporalState + updates relational_age
+      - Principle: time advances when prediction error changes meaningfully.
     """
 
-    def __init__(self, config: ClockConfig | None = None):
-        self.cfg = config or ClockConfig()
-        self.relational_age = 0.0
-        self.prev_coherence = None
-        self.step_counter = 0
+    def __init__(self, cfg: ClockConfig):
+        self.cfg = cfg
+
+        self.step_counter: int = 0
+        self.relational_age: float = 0.0
+
+        self._prev_loss: Optional[float] = None
+        self._ema_delta: float = 0.0
+
+        # Exposed metrics
+        self.coherence: float = 1.0
+        self.prev_coherence: float = 1.0
+        self.density: float = 0.0
 
     def get_dynamic_threshold(self) -> float:
-        # Aging Law: threshold grows logarithmically with age (maturation)
-        # Keep it strictly positive.
-        return max(self.cfg.epsilon, self.cfg.base_threshold * (1.0 + np.log1p(max(0.0, self.relational_age))))
-
-    def coherence(self, loss_value: float) -> float:
-        # Inverse-loss coherence in (0,1]
-        loss_value = float(loss_value)
-        if loss_value < 0:
-            # If some caller passes negative loss (rare), clamp to 0 for coherence meaning.
-            loss_value = 0.0
-        return 1.0 / (1.0 + loss_value)
+        """
+        Dynamic threshold = base + small term from running delta (optional).
+        Keeps the clock stable if noise is high.
+        """
+        base = self.cfg.base_threshold
+        extra = 0.25 * self._ema_delta  # small adaptivity
+        return base + extra
 
     def tick(self, loss_value: float) -> TemporalState:
+        """
+        Advance the relational clock one step given a new loss_value.
+        Returns the TemporalState.
+        """
         self.step_counter += 1
 
-        c = self.coherence(loss_value)
-
-        if self.prev_coherence is None:
-            self.prev_coherence = c
+        if self._prev_loss is None:
+            self._prev_loss = float(loss_value)
+            self.prev_coherence = self.coherence
+            self.coherence = 1.0
+            self.density = 0.0
             return TemporalState.LIVING
 
-        raw_delta = abs(c - self.prev_coherence)
+        loss_value = float(loss_value)
+        raw_delta = abs(loss_value - self._prev_loss)
 
-        # ✅ KEY FIX: weight delta by current coherence so chaos doesn't create fake "time"
-        if self.cfg.use_weighted_delta:
-            delta = raw_delta * max(self.cfg.epsilon, c)
-        else:
-            delta = raw_delta
+        # EMA of delta (for smoothing)
+        # alpha is small => stable; bigger => reactive
+        alpha = 0.12
+        self._ema_delta = (1 - alpha) * self._ema_delta + alpha * raw_delta
 
         threshold = self.get_dynamic_threshold()
 
-        state = TemporalState.STAGNANT
+        # coherence is an inverse-ish measure of surprise
+        self.prev_coherence = self.coherence
+        self.coherence = 1.0 / (1.0 + raw_delta + self.cfg.epsilon)
 
-        if delta > threshold * self.cfg.awakening_multiplier:
-            state = TemporalState.AWAKENING
-            self.relational_age += delta * self.cfg.awakening_age_gain
-        elif delta > threshold * self.cfg.living_multiplier:
-            state = TemporalState.LIVING
-            self.relational_age += delta
+        # density = "how much time is happening" per step (proxy)
+        self.density = raw_delta
 
-        self.prev_coherence = c
+        # Determine state
+        if raw_delta <= threshold:
+            state = TemporalState.STAGNANT
+            age_gain = 0.0
+        else:
+            # Awakening if delta is significantly above threshold
+            if raw_delta >= 3.0 * threshold:
+                state = TemporalState.AWAKENING
+                age_gain = (
+                    self.cfg.awakening_age_gain
+                    + self.cfg.awakening_multiplier * (raw_delta - threshold)
+                )
+            else:
+                state = TemporalState.LIVING
+                age_gain = self.cfg.living_multiplier * (raw_delta - threshold)
+
+        # Weighted delta option (slightly reduces jitter)
+        if self.cfg.use_weighted_delta and age_gain > 0.0:
+            weight = 1.0 / (1.0 + math.exp(-10.0 * (raw_delta - threshold)))
+            age_gain *= weight
+
+        self.relational_age += float(age_gain)
+        self._prev_loss = loss_value
         return state
 
-    def density(self) -> float:
-        # Safer density (prevents huge values at the first few steps)
-        return self.relational_age / max(5, self.step_counter)
-
-
+    def tick_result(self, loss_value: float) -> TickResult:
+        """
+        Convenience function if you want debug info in demos/logs.
+        """
+        prev_age = self.relational_age
+        state = self.tick(loss_value)
+        age = self.relational_age
+        delta = 0.0 if self._prev_loss is None else abs(float(loss_value) - float(self._prev_loss))
+        thr = self.get_dynamic_threshold()
+        return TickResult(
+            state=state,
+            age=age,
+            delta=delta,
+            threshold=thr,
+            coherence=self.coherence,
+        )
 

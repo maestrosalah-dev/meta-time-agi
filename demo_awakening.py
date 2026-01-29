@@ -1,33 +1,40 @@
+# demo_awakening.py
 import random
+
 from metatime.core.clock import RelationalClock, ClockConfig
 
+
 def main():
-    print("\n--- META-TIME DEMO (Fixed): Lived Time vs Physical Steps ---\n")
+    print("\n--- META-TIME DEMO: Lived Time vs Physical Steps ---\n")
 
-    clock = RelationalClock(ClockConfig(
-        base_threshold=0.005,
-        awakening_multiplier=8.0,
-        living_multiplier=1.0,
-        awakening_age_gain=2.0,
-        use_weighted_delta=True,
-        epsilon=1e-12,
-    ))
+    clock = RelationalClock(
+        ClockConfig(
+            base_threshold=0.005,
+            awakening_multiplier=8.0,
+            living_multiplier=1.0,
+            awakening_age_gain=2.0,
+            use_weighted_delta=True,
+        )
+    )
 
-    # stable -> shift -> stable
+    # Simulate a stream of losses with a "shock" (distribution shift)
     losses = []
-    for _ in range(80):
-        losses.append(max(0.03, 0.8 * random.random()))
-    losses.append(10.0)
-    for _ in range(79):
-        losses.append(1.7 + 0.6 * random.random())
+    for i in range(1, 11):
+        if i <= 5:
+            losses.append(0.20 + random.uniform(-0.02, 0.02))
+        else:
+            # shock: higher variance / new regime
+            losses.append(0.60 + random.uniform(-0.20, 0.20))
 
-    for i, loss in enumerate(losses, 1):
-        state = clock.observe(loss)
-        print(f"Ep {i:3d} | Loss: {loss:7.4f} | Age: {clock.age:6.2f} | {state}")
+    for ep, loss in enumerate(losses, start=1):
+        state = clock.tick(loss)
+        age = clock.relational_age
+        print(f"Ep {ep:3d} | Loss: {loss:7.4f} | Age: {age:.6f} | {state}")
 
     print("\n--- FINAL ---")
-    print("Total Physical Steps:", len(losses))
-    print("Final Cognitive Age :", f"{clock.age:.2f}")
+    print("Total Physical Steps:", clock.step_counter)
+    print("Final Cognitive Age :", clock.relational_age)
+
 
 if __name__ == "__main__":
     main()
