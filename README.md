@@ -1,29 +1,20 @@
-# \# Meta-Time AGI (Relational Time)
+# Meta-Time AGI (Relational & Meta-Time)
 
-# ## 📄 Paper
-**Meta-Time AGI: Relational Time as an Emergent Cognitive Metric**  
-DOI: https://doi.org/10.17605/OSF.IO/3C9GU
+Meta-Time is a research prototype where **time emerges from meaningful prediction-error change**.
+Instead of assuming uniform physical time, we define **relational time** that flows under novelty, learning pressure, or distribution shifts.
 
-# Meta-Time is a \*\*relational clock\*\* where \*time flows when prediction error shifts meaningfully\*.
+This repo contains:
+- a minimal Meta-Time core (`metatime/`)
+- demos (sensor stream, calibrated “awakening”, text stream)
+- a PDF paper (see `paper/relational_time.pdf`)
+- (v2) an extended clock with **meta-time, density, and curvature**
 
-# Instead of assuming uniform physical time, we define a cognitive/relational time that increases under novelty, learning pressure, or distribution shifts.
+---
 
-# 
+## Install
 
-# \## Quickstart
-
-# 
-
-# ```bash
-
-# pip install -r requirements.txt
-
-# python demo\_sensor\_time.py
-
-# python demo\_awakening.py
-
-# python demo\_text\_time.py
-
+```bash
+pip install -r requirements.txt
 
 
 
