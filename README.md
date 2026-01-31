@@ -24,6 +24,13 @@ Further work will build *on top of this clock*, not modify it.
 
 The clock is considered **conceptually closed** and **implementation-stable**.
 
+## ⚠️ Limitations
+
+- MetaTime does not model physical time.
+- No claim is made about cosmological or relativistic time.
+- Quantum references are **conceptual and architectural**, not hardware-level.
+- The clock does not make decisions — it measures *temporal meaning*.
+- Scaling to large multi-agent systems is future work.
 
 
 
